@@ -1,20 +1,35 @@
 "use client";
 
-import { useState } from "react";
 import { useGetOrdersQuery } from "@/store/api/orderApi";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function OrdersPage() {
-  const [page, setPage] = useState(1);
-  const [status, setStatus] = useState<string | undefined>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const page = Number(searchParams.get("page")) || 1;
+  const status = searchParams.get("status") || "";
 
   const { data, isLoading, isError } = useGetOrdersQuery({
     page,
     limit: 10,
-    status,
+    status: status || undefined,
   });
 
-  if (isLoading) return <p>Loading orders...</p>;
-  if (isError) return <p>Failed to load orders</p>;
+  const setParams = (params: { page?: number; status?: string }) => {
+    const newParams = new URLSearchParams();
+
+    const nextPage = params.page ?? page;
+    const nextStatus = params.status ?? status;
+
+    if (nextPage > 1) newParams.set("page", String(nextPage));
+    if (nextStatus) newParams.set("status", nextStatus);
+
+    router.push(`?${newParams.toString()}`);
+  };
+
+  if (isLoading) return <p>Loading...</p>;
+  if (isError) return <p>Error loading orders</p>;
 
   return (
     <div className="p-6">
@@ -22,7 +37,8 @@ export default function OrdersPage() {
 
       <select
         className="border p-2 mb-4"
-        onChange={(e) => setStatus(e.target.value || undefined)}
+        value={status}
+        onChange={(e) => setParams({ status: e.target.value || "", page: 1 })}
       >
         <option value="">All</option>
         <option value="PENDING">Pending</option>
@@ -52,8 +68,13 @@ export default function OrdersPage() {
       </table>
 
       <div className="flex gap-4 mt-4">
-        <button onClick={() => setPage((p) => Math.max(p - 1, 1))}>Prev</button>
-        <button onClick={() => setPage((p) => p + 1)}>Next</button>
+        <button
+          disabled={page === 1}
+          onClick={() => setParams({ page: page - 1 })}
+        >
+          Prev
+        </button>
+        <button onClick={() => setParams({ page: page + 1 })}>Next</button>
       </div>
     </div>
   );
